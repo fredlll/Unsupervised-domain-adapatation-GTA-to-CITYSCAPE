@@ -45,7 +45,7 @@ def get_argparser():
                         help="save segmentation results to \"./results\"")
     parser.add_argument("--total_itrs", type=int, default=30000,
                         help="epoch number (default: 30k)")
-    parser.add_argument("--lr", type=float, default=0.01,
+    parser.add_argument("--lr", type=float, default=0.1,
                         help="learning rate (default: 0.01)")
     parser.add_argument("--lr_policy", type=str, default='poly', choices=['poly', 'step'],
                         help="learning rate scheduler policy")
@@ -54,11 +54,11 @@ def get_argparser():
                         help='crop validation (default: False)')
     parser.add_argument("--batch_size", type=int, default=4,
                         help='batch size (default: 16)')
-    parser.add_argument("--val_batch_size", type=int, default=16,
+    parser.add_argument("--val_batch_size", type=int, default=4,
                         help='batch size for validation (default: 4)')
     parser.add_argument("--crop_size", type=int, default=512)
     
-    parser.add_argument("--ckpt", default='', type=str,
+    parser.add_argument("--ckpt", default='checkpoints/latest_deeplabv3plus_mobilenet_GTA_os16.pth', type=str,
                         help="restore from checkpoint")
     parser.add_argument("--continue_training", action='store_true', default=True)
 
@@ -72,7 +72,7 @@ def get_argparser():
                         help="random seed (default: 1)")
     parser.add_argument("--print_interval", type=int, default=10,
                         help="print interval of loss (default: 10)")
-    parser.add_argument("--val_interval", type=int, default=500,
+    parser.add_argument("--val_interval", type=int, default=100,
                         help="epoch interval for eval (default: 100)")
     parser.add_argument("--download", action='store_true', default=False,
                         help="download datasets")
@@ -120,10 +120,6 @@ def get_dataset(opts):
                                split='train', transform=train_transform)
         val_dst = Cityscapes(root=opts.data_root,
                              split='val', transform=val_transform)
-        # train_city = Cityscapes(root=opts.data_root, use_cityscape = True,
-        #                        split='train', transform=train_transform)
-        # val_city = Cityscapes(root=opts.data_root, use_cityscape = True,
-        #                        split='val', transform=train_transform)
     return train_dst, val_dst
 
 
@@ -207,9 +203,9 @@ def main():
     # Setup dataloader
     train_dst, val_dst = get_dataset(opts)
     train_loader = data.DataLoader(
-        train_dst, batch_size=opts.batch_size, shuffle=True, num_workers=1)
+        train_dst, batch_size=opts.batch_size, shuffle=True, num_workers=2)
     val_loader = data.DataLoader(
-        val_dst, batch_size=opts.val_batch_size, shuffle=True, num_workers=1)
+        val_dst, batch_size=opts.val_batch_size, shuffle=True, num_workers=2)
     print("Dataset: %s, Train set: %d, Val set: %d" %
           (opts.dataset, len(train_dst), len(val_dst)))
 
@@ -298,11 +294,10 @@ def main():
         # =====  Train  =====
         model.train()
         cur_epochs += 1
-        for (images, labels, city_imgs) in train_loader:
+        for (images, labels) in train_loader:
             cur_itrs += 1
 
             images = images.to(device, dtype=torch.float32)
-            city_imgs = city_imgs.to(device, dtype=torch.float32)
             labels = labels.to(device, dtype=torch.long)
 
             optimizer.zero_grad()
